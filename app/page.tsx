@@ -1,36 +1,35 @@
 import Link from "next/link";
+import TopBar from "@/components/TopBar";
+import SceneImage, { SCENE_HERO_SIZES } from "@/components/SceneImage";
+import { HeroIntro, PhotoCredits, TrainingFootnote } from "@/components/Hero";
+import { ArrowRightIcon } from "@/components/ui/icons";
 
+/** Cover / holding screen — useful while participants join in the room or online. */
 export default function Home() {
   return (
-    <main
-      className="min-h-screen flex flex-col items-center justify-center px-4"
-      style={{ background: "linear-gradient(135deg, #0f172a 0%, #1e293b 50%, #0f172a 100%)" }}
-    >
-      {/* Biohazard icon */}
-      <div className="text-7xl mb-6 select-none">☣</div>
-
-      <h1 className="text-center text-4xl sm:text-5xl font-extrabold text-white mb-3 leading-tight">
-        Ebola Response:
-        <br />
-        <span className="text-amber-400">Contain or Collapse</span>
-      </h1>
-
-      <p className="text-slate-400 text-center text-base max-w-md mb-10 leading-relaxed">
-        Occupational Health Ebola preparedness training simulation for industrial sites.
-        Make the right call — before the clock runs out.
-      </p>
-
-      <Link
-        href="/game"
-        className="rounded-xl bg-amber-500 hover:bg-amber-400 active:bg-amber-600 text-slate-900 font-extrabold text-lg px-14 py-4 transition-colors shadow-xl shadow-amber-900/50"
-      >
-        Launch Simulation →
-      </Link>
-
-      <p className="mt-6 text-xs text-slate-600 text-center max-w-xs">
-        This simulation is for training purposes only. All scenarios are based on established
-        Ebola response protocols.
-      </p>
-    </main>
+    <div className="flex min-h-[100dvh] flex-col bg-canvas">
+      <TopBar />
+      <main className="mx-auto grid w-full max-w-[1680px] flex-1 grid-cols-1 items-center gap-10 px-5 py-8 sm:px-8 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,0.85fr)] lg:gap-14 lg:px-12">
+        <div className="flex flex-col gap-8">
+          <HeroIntro size="xl" />
+          <div>
+            <Link
+              href="/game"
+              className="inline-flex min-h-[64px] items-center justify-center gap-3 rounded-xl border border-alert bg-alert px-9 text-[20px] font-semibold text-white transition-colors hover:bg-alert-strong"
+            >
+              Enter Simulation
+              <ArrowRightIcon className="h-6 w-6" />
+            </Link>
+          </div>
+        </div>
+        <figure className="hidden h-[min(74vh,720px)] min-h-[380px] lg:block">
+          <SceneImage slug="industrial-site" sizes={SCENE_HERO_SIZES} priority className="h-full w-full" />
+        </figure>
+      </main>
+      <footer className="flex flex-col gap-2 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
+        <TrainingFootnote />
+        <PhotoCredits />
+      </footer>
+    </div>
   );
 }

@@ -60,7 +60,7 @@ const teamAQuestions: Question[] = [
       containmentImpact: "Viral spread in the waiting area may have already occurred.",
     },
     lesson:
-      "Any patient with travel history to an Ebola-affected region AND hemorrhagic fever symptoms must be isolated and assessed using full PPE BEFORE any clinical contact.",
+      "Any patient with fever or other symptoms compatible with Ebola AND recent travel to an affected area or contact with a case must be isolated and assessed using full PPE BEFORE any clinical contact. Do not wait for bleeding: it is a late sign and is often absent.",
     exposureImpact: { correct: -5, wrong: 20 },
     patientImpact: { correct: "Safely isolated — assessment underway", wrong: "Exposed to unprotected staff — risk escalating" },
     containmentImpact: { correct: "Containment INITIATED", wrong: "Containment COMPROMISED" },
@@ -89,7 +89,7 @@ const teamAQuestions: Question[] = [
       containmentImpact: "Containment is DELAYED — contact tracing scope widens.",
     },
     lesson:
-      "When no isolation room exists, immediately remove non-essential personnel from the area. Create physical distance using any available space. Improvised isolation is always better than no isolation.",
+      "When no isolation room exists, immediately remove non-essential personnel from the area. Create physical distance using any available space. Improvised isolation is always better than no isolation. Record everyone who shared the waiting area as a contact for follow-up.",
     exposureImpact: { correct: -5, wrong: 15 },
     patientImpact: { correct: "Isolated in ad-hoc space — stable", wrong: "Exposed to 5+ co-workers — risk growing" },
     containmentImpact: { correct: "Spread LIMITED", wrong: "Spread RISK INCREASING" },
@@ -118,7 +118,7 @@ const teamAQuestions: Question[] = [
       containmentImpact: "Untracked exposure event widens the silent transmission chain.",
     },
     lesson:
-      "Any unprotected skin contact with a suspected Ebola patient triggers immediate decontamination, incident reporting, and 21-day monitoring under Ebola exposure protocol. The nurse must NOT continue clinical duties.",
+      "Any unprotected skin contact with a suspected Ebola patient triggers immediate decontamination, incident reporting, and 21-day monitoring under Ebola exposure protocol. The nurse must stop clinical duties immediately; any return to patient care during the monitoring period follows site policy and public health advice.",
     exposureImpact: { correct: -5, wrong: 20 },
     patientImpact: { correct: "Exposure event contained", wrong: "Secondary healthcare worker exposure likely" },
     containmentImpact: { correct: "Chain TRACED and CONTROLLED", wrong: "Silent exposure chain GROWING" },
@@ -143,11 +143,11 @@ const teamAQuestions: Question[] = [
     },
     consequenceWrong: {
       patientOutcome: "IV access may benefit the patient short-term but risks a needle-stick incident with Ebola-positive blood.",
-      exposureRisk: "Needle-stick with Ebola blood is a HIGH-RISK exposure event with near-certain transmission.",
+      exposureRisk: "A needle-stick with blood from a suspected Ebola patient is a HIGH-RISK exposure requiring immediate first aid, reporting and 21-day monitoring.",
       containmentImpact: "Additional exposed healthcare workers expand the contact network significantly.",
     },
     lesson:
-      "NEVER perform invasive procedures on a suspected Ebola patient without full Ebola-level PPE. Standard gloves do not protect against needle-stick splatter. Wait for proper PPE or specialist team.",
+      "NEVER perform invasive procedures on a suspected Ebola patient without full Ebola-level PPE. Examination gloves alone do not protect against blood splashes, and no glove prevents a needle-stick injury. Minimise sharps use and wait for proper PPE or the specialist team.",
     exposureImpact: { correct: -5, wrong: 25 },
     patientImpact: { correct: "Stabilising on oral fluids — IV pending specialist", wrong: "IV placed but nurse at extreme exposure risk" },
     containmentImpact: { correct: "Invasive exposure AVOIDED", wrong: "Sharps exposure event CREATED" },
@@ -191,7 +191,7 @@ const teamAQuestions: Question[] = [
       A: "Allow the visit if the spouse wears a surgical mask — it reduces transmission risk",
       B: "Allow a brief supervised visit through a glass partition to prevent escalation",
       C: "Ask the patient whether they consent to the visit and defer to their wishes",
-      D: "Refuse visitation firmly, compassionately explain the infection control protocol, and direct the family to the occupational health authority for updates",
+      D: "Refuse visitation firmly, compassionately explain the infection control protocol, and direct the family to the site Health team for updates",
     },
     correctAnswer: "D",
     consequenceCorrect: {
@@ -219,7 +219,7 @@ const teamAQuestions: Question[] = [
     options: {
       A: "Allow transport to proceed — any PPE is better than no PPE and the patient needs hospital care",
       B: "Transfer the patient in a private vehicle with a masked driver to avoid further delay",
-      C: "STOP the transport — do not allow it until EMS has confirmed full Ebola-rated PPE (coverall, N95/P100, face shield, double gloves)",
+      C: "STOP the transport — do not allow it until EMS confirms full Ebola PPE (fluid-resistant coverall, face shield or goggles, medical mask or respirator, double gloves)",
       D: "Give EMS your clinic's PPE stock and proceed with transport",
     },
     correctAnswer: "C",
@@ -234,7 +234,7 @@ const teamAQuestions: Question[] = [
       containmentImpact: "Infected EMS crew becomes a mobile exposure vector — spreading risk to hospital and community.",
     },
     lesson:
-      "Ebola transport requires Level C/D biological PPE as a minimum. Surgical masks are NOT sufficient. You have the authority and responsibility to halt transport until proper PPE is confirmed — even if EMS resists.",
+      "Ebola patient transport requires the full Ebola PPE ensemble: fluid-resistant coverall or gown with head and neck cover, apron, double gloves, boots, goggles or face shield, and a fluid-resistant medical mask (a respirator such as N95/FFP2 for aerosol-generating procedures). A surgical mask and single gloves alone are NOT sufficient. You have the authority and responsibility to halt transport until proper PPE is confirmed — even if EMS resists.",
     exposureImpact: { correct: -5, wrong: 20 },
     patientImpact: { correct: "Safe transfer — chain of custody maintained", wrong: "Transfer in progress — EMS crew exposed" },
     containmentImpact: { correct: "Transport BIOSAFE", wrong: "Mobile exposure event — risk spreading" },
@@ -260,7 +260,7 @@ const teamBQuestions: Question[] = [
     correctAnswer: "B",
     consequenceCorrect: {
       patientOutcome: "Worker is isolated before further food handling. Exposure chain is paused.",
-      exposureRisk: "Immediate PPE use protects occupational health staff during assessment.",
+      exposureRisk: "Immediate PPE use protects Health staff during assessment.",
       containmentImpact: "Early alert activation triggers the full response — facility-wide exposure risk mapped.",
     },
     consequenceWrong: {
@@ -269,7 +269,7 @@ const teamBQuestions: Question[] = [
       containmentImpact: "Every hour of delay multiplies the number of potential contacts.",
     },
     lesson:
-      "Travel history to an Ebola-endemic region combined with haemorrhagic fever symptoms mandates immediate isolation and Ebola alert activation — regardless of how mild symptoms appear at presentation.",
+      "Travel to an area with active Ebola transmission within the past 21 days, combined with symptoms compatible with Ebola (such as fever, fatigue, diarrhoea or vomiting), calls for immediate isolation, full PPE and activation of the Ebola alert so the public health team can assess the case against the current case definition — however mild the symptoms appear. Fever can be absent at presentation or masked by paracetamol, so its absence does not rule Ebola out.",
     exposureImpact: { correct: -5, wrong: 20 },
     patientImpact: { correct: "Isolated — no further food contact", wrong: "Still handling food — exposure widening" },
     containmentImpact: { correct: "Alert ACTIVATED", wrong: "Exposure chain CONTINUING" },
@@ -283,13 +283,13 @@ const teamBQuestions: Question[] = [
     options: {
       A: "Disinfect the kitchen surfaces and resume catering operations after a deep clean",
       B: "Test a sample of today's food for Ebola virus to confirm risk level",
-      C: "Halt ALL food services, quarantine exposed kitchen staff, and formally notify all 200 potentially exposed employees",
+      C: "Halt ALL food services, remove exposed kitchen staff from duty pending exposure assessment and appropriate 21-day monitoring, and formally notify all 200 potentially exposed employees",
       D: "Inform senior management only and wait for official health authority confirmation before notifying workers",
     },
     correctAnswer: "C",
     consequenceCorrect: {
       patientOutcome: "All exposed parties are notified. Kitchen operations halted — no new food-route exposure.",
-      exposureRisk: "Kitchen staff are quarantined. 200 employees are informed and can report symptoms.",
+      exposureRisk: "Exposed kitchen staff are off duty pending exposure assessment and monitoring. 200 employees are informed and can report symptoms.",
       containmentImpact: "Scope of exposure is defined and communicated — response can be calibrated accurately.",
     },
     consequenceWrong: {
@@ -298,7 +298,7 @@ const teamBQuestions: Question[] = [
       containmentImpact: "Hidden exposure chain expands beyond the facility boundary.",
     },
     lesson:
-      "When food service is the exposure route, ALL recipients must be notified and kitchen operations halted immediately. Ebola is not transmitted via food, but the worker's body fluids may have contaminated surfaces or utensils during symptomatic handling.",
+      "When food service is the exposure route, ALL recipients must be notified, in coordination with the public health authority, and kitchen operations halted immediately. Exposed kitchen staff are removed from duty pending exposure assessment, with appropriate 21-day monitoring. Ebola is not transmitted via food, but the worker's body fluids may have contaminated surfaces or utensils during symptomatic handling.",
     exposureImpact: { correct: -10, wrong: 20 },
     patientImpact: { correct: "Exposure chain MAPPED", wrong: "200 uninformed contacts — chain EXPANDING" },
     containmentImpact: { correct: "Food route CLOSED", wrong: "Facility-wide spread risk CRITICAL" },
@@ -323,7 +323,7 @@ const teamBQuestions: Question[] = [
     },
     consequenceWrong: {
       patientOutcome: "Workers continue using potentially contaminated restrooms, creating new exposure events.",
-      exposureRisk: "High-touch shared surfaces are one of the most efficient Ebola environmental transmission routes.",
+      exposureRisk: "Surfaces soiled with a symptomatic patient's body fluids (vomit, diarrhoea, blood) can transmit Ebola indirectly.",
       containmentImpact: "Indirect contact chain continues — scope of exposure widens beyond direct contacts.",
     },
     lesson:
@@ -347,7 +347,7 @@ const teamBQuestions: Question[] = [
     correctAnswer: "D",
     consequenceCorrect: {
       patientOutcome: "Worker is removed from food contact duties. No further contamination of food service.",
-      exposureRisk: "Occupational health authority supersedes line management in infectious disease situations.",
+      exposureRisk: "Health and infection-control authority supersedes line management in infectious disease situations.",
       containmentImpact: "Food service contamination route is CLOSED before additional meals are affected.",
     },
     consequenceWrong: {
@@ -356,7 +356,7 @@ const teamBQuestions: Question[] = [
       containmentImpact: "A facility-wide outbreak becomes highly probable if this worker continues food service.",
     },
     lesson:
-      "Occupational health professionals have the legal authority to override line management decisions during public health emergencies. 'Management authority' does not extend to overruling infection control protocols during a potential Ebola incident.",
+      "Health and infection-control professionals must be empowered by site policy, backed by the public health authorities, to override line management decisions during public health emergencies. 'Management authority' does not extend to overruling infection control protocols during a potential Ebola incident.",
     exposureImpact: { correct: -5, wrong: 25 },
     patientImpact: { correct: "Food contamination STOPPED", wrong: "Food contamination CONTINUING — mass exposure" },
     containmentImpact: { correct: "Authority ASSERTED — risk controlled", wrong: "Authority UNDERMINED — risk critical" },
@@ -369,13 +369,13 @@ const teamBQuestions: Question[] = [
       "Investigation reveals the ill worker shared towels and personal items in the locker room with 2 coworkers over the past 4 days. What is the risk assessment and correct action?",
     options: {
       A: "Shared personal items pose negligible Ebola transmission risk — no additional action required",
-      B: "Classify the 2 coworkers as HIGH-RISK contacts, isolate them for 21-day monitoring, and decontaminate the locker room",
+      B: "Classify the 2 coworkers as HIGH-RISK contacts, assess exposure and apply appropriate work restrictions and 21-day monitoring, and decontaminate the locker room",
       C: "Ask the 2 coworkers to shower and return to work — personal hygiene addresses the risk",
       D: "Monitor the coworkers only if they develop fever within 72 hours",
     },
     correctAnswer: "B",
     consequenceCorrect: {
-      patientOutcome: "High-risk contacts are isolated before potential symptom onset and secondary spread.",
+      patientOutcome: "High-risk contacts are assessed, placed under appropriate work restrictions and monitored before potential symptom onset and secondary spread.",
       exposureRisk: "Locker room decontamination prevents further indirect contact exposures.",
       containmentImpact: "Contact chain mapped accurately — all known high-risk individuals are accounted for.",
     },
@@ -385,9 +385,9 @@ const teamBQuestions: Question[] = [
       containmentImpact: "Two potential new index cases are loose in the facility and community.",
     },
     lesson:
-      "Sharing towels, clothing, or personal hygiene items with a symptomatic Ebola patient constitutes HIGH-RISK exposure (direct contact with potentially infected secretions). Both coworkers require immediate 21-day monitoring and removal from the workplace.",
+      "Sharing towels, clothing, or personal hygiene items with a symptomatic Ebola patient constitutes HIGH-RISK exposure (direct contact with potentially infected secretions). Both coworkers require an immediate exposure assessment, appropriate work restrictions and 21-day monitoring.",
     exposureImpact: { correct: -5, wrong: 20 },
-    patientImpact: { correct: "High-risk contacts ISOLATED", wrong: "2 potential cases still at large" },
+    patientImpact: { correct: "High-risk contacts UNDER MONITORING", wrong: "2 potential cases still at large" },
     containmentImpact: { correct: "Locker room DECONTAMINATED", wrong: "Secondary cluster risk HIGH" },
   },
   {
@@ -397,7 +397,7 @@ const teamBQuestions: Question[] = [
     question:
       "Health authorities request a full list of all workplace contacts. The ill worker refuses to cooperate, citing personal privacy and fear of stigma. What is the correct response?",
     options: {
-      A: "Invoke public health emergency authority — contact disclosure is legally mandatory during Ebola alerts and overrides individual privacy objections",
+      A: "Escalate under public health emergency procedures — share the worker's contacts with the health authority for tracing, limited to what is necessary, despite the privacy objection",
       B: "Fully respect the worker's privacy rights — do not share any names with health authorities",
       C: "Share only the names of individuals the worker verbally consents to share",
       D: "Wait for a formal court order before releasing any worker identities",
@@ -414,7 +414,7 @@ const teamBQuestions: Question[] = [
       containmentImpact: "Containment is IMPOSSIBLE without a complete contact network.",
     },
     lesson:
-      "Under declared public health emergency legislation, contact disclosure to health authorities is mandatory and overrides GDPR/privacy objections. Stigma concerns must be addressed compassionately, but cannot block life-saving contact tracing.",
+      "Complete contact information is essential for Ebola contact tracing and should be shared with the public health authorities (NCDC and the State Ministry of Health). Nigeria's Data Protection Act 2023 includes an exemption for processing needed to prevent or control a national public health emergency; confirm the legal basis for your site with your legal adviser. Share only what is necessary, only with the health authority, and address stigma concerns compassionately — they must not stop life-saving contact tracing.",
     exposureImpact: { correct: -10, wrong: 15 },
     patientImpact: { correct: "Full contact map ESTABLISHED", wrong: "Partial map — gaps in exposure chain" },
     containmentImpact: { correct: "Tracing COMPLETE", wrong: "Tracing INCOMPLETE — outbreak risk remains" },

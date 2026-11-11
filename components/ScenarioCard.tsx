@@ -1,130 +1,122 @@
 "use client";
 
-import { OptionKey, Question } from "@/data/questions";
-import { playCorrect, playWrong } from "@/lib/sound";
-import { useEffect, useMemo, useState } from "react";
+import type { OptionKey, Question } from "@/data/questions";
+import { getScenarioMeta } from "@/data/scenarioMeta";
+import SceneImage from "@/components/SceneImage";
+import { LockIcon } from "@/components/ui/icons";
+
+/** Options are always shown in their original order — never shuffled. */
+export const OPTION_KEYS: OptionKey[] = ["A", "B", "C", "D"];
 
 interface ScenarioCardProps {
   question: Question;
   questionNumber: number;
   totalQuestions: number;
-  onAnswer: (selectedKey: OptionKey, isCorrect: boolean) => void;
+  lockedKey: OptionKey | null;
+  disabled: boolean;
+  onSelect: (key: OptionKey) => void;
 }
 
-function shuffleOptionOrder(q: Question): OptionKey[] {
-  const keys: OptionKey[] = ["A", "B", "C", "D"];
-  for (let i = keys.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [keys[i], keys[j]] = [keys[j], keys[i]];
-  }
-  return keys;
-}
-
-const DISPLAY_LABELS = ["A", "B", "C", "D"] as const;
-
+/**
+ * Scenario + four options. Selecting an option locks it in a neutral style —
+ * the correct answer is never revealed during gameplay.
+ */
 export default function ScenarioCard({
   question,
   questionNumber,
   totalQuestions,
-  onAnswer,
+  lockedKey,
+  disabled,
+  onSelect,
 }: ScenarioCardProps) {
-  const [selected, setSelected] = useState<OptionKey | null>(null);
-  const [revealed, setRevealed] = useState(false);
-
-  const shuffledOrder = useMemo(() => shuffleOptionOrder(question), [question]);
-
-  useEffect(() => {
-    setSelected(null);
-    setRevealed(false);
-  }, [question.id]);
-
-  function handleSelect(dataKey: OptionKey) {
-    if (revealed) return;
-    const isCorrect = dataKey === question.correctAnswer;
-    setSelected(dataKey);
-    setRevealed(true);
-    if (isCorrect) playCorrect();
-    else playWrong();
-    // Brief color flash before advancing — no consequence panel
-    setTimeout(() => onAnswer(dataKey, isCorrect), 700);
-  }
+  const meta = getScenarioMeta(question.id);
 
   return (
-    <div className="flex flex-col h-full rounded-2xl border border-slate-200 bg-slate-50 shadow-sm overflow-hidden">
-      {/* Scenario header */}
-      <div className="bg-white border-b border-slate-200 px-5 py-3 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className="inline-block h-2.5 w-2.5 rounded-full bg-orange-500 animate-pulse" />
-          <span className="text-sm uppercase tracking-widest text-orange-600 font-bold">
+    <section
+      aria-labelledby={`scenario-${question.id}-text`}
+      className="flex h-full min-h-0 flex-col overflow-y-auto rounded-2xl border border-line bg-surface shadow-card"
+    >
+      <SceneImage
+        key={`scene-${question.id}`}
+        slug={meta.scene}
+        priority
+        className="mx-3 mt-3 min-h-[52px] flex-[1_1_170px] animate-fade-in [@media(max-height:700px)]:hidden"
+      />
+
+      <div key={question.id} className="flex flex-none animate-fade-up flex-col px-5 pb-4 pt-4 lg:px-7 lg:pb-5">
+        <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
+          <span className="text-[14px] font-bold uppercase tracking-[0.16em] text-alert">
             Scenario {questionNumber} of {totalQuestions}
           </span>
-        </div>
-        <span className="text-sm text-slate-500 font-medium italic truncate max-w-[60%]">
-          {question.scenario}
-        </span>
-      </div>
-
-      <div className="flex flex-col flex-1 px-5 py-4 gap-4 min-h-0">
-        {/* Question text */}
-        <div className="rounded-xl bg-white border border-slate-200 px-5 py-4 flex-shrink-0">
-          <p className="text-2xl font-bold text-slate-800 leading-snug">{question.question}</p>
+          <span className="text-[17px] font-semibold text-ink-2 lg:text-[19px]">{question.scenario}</span>
         </div>
 
-        {/* Answer options */}
-        <div className="flex flex-col gap-2 flex-1 min-h-0">
-          <p className="text-sm uppercase tracking-widest text-slate-400 font-semibold flex-shrink-0">
-            Select the correct action
-          </p>
-          <div className="flex flex-col gap-2 flex-1">
-            {shuffledOrder.map((dataKey, idx) => {
-              const displayLabel = DISPLAY_LABELS[idx];
-              const optionText = question.options[dataKey];
-              const isSelected = selected === dataKey;
-              const isCorrect = dataKey === question.correctAnswer;
+        <p
+          id={`scenario-${question.id}-text`}
+          className="mt-2 text-[clamp(22px,calc(1.25vw+8px),34px)] font-semibold leading-[1.28] tracking-[-0.01em] text-ink"
+        >
+          {question.question}
+        </p>
 
-              let cardStyle =
-                "border-slate-200 bg-white hover:border-orange-400 hover:bg-orange-50 cursor-pointer";
-              if (revealed) {
-                if (isCorrect) {
-                  cardStyle = "border-green-400 bg-green-50 cursor-default";
-                } else if (isSelected && !isCorrect) {
-                  cardStyle = "border-red-400 bg-red-50 cursor-default";
-                } else {
-                  cardStyle = "border-slate-200 bg-slate-50 opacity-50 cursor-default";
-                }
-              }
-
-              return (
-                <button
-                  key={dataKey}
-                  onClick={() => handleSelect(dataKey)}
-                  disabled={revealed}
-                  className={`w-full text-left rounded-xl border p-3 transition-all duration-200 ${cardStyle}`}
+        <div
+          role="group"
+          aria-label="Response options"
+          className="mt-[clamp(12px,2.2vh,26px)] flex flex-col gap-[clamp(8px,1.3vh,14px)]"
+        >
+          {OPTION_KEYS.map((key) => {
+            const isLocked = lockedKey === key;
+            const dimmed = lockedKey !== null && !isLocked;
+            return (
+              <button
+                key={key}
+                type="button"
+                onClick={() => onSelect(key)}
+                disabled={disabled}
+                aria-pressed={isLocked}
+                aria-keyshortcuts={key}
+                className={`flex w-full items-center gap-4 rounded-xl border-2 px-4 py-[clamp(8px,1.35vh,14px)] text-left transition-[background-color,border-color,opacity,color] duration-200 disabled:cursor-default ${
+                  isLocked
+                    ? "border-ink bg-ink text-white"
+                    : dimmed
+                    ? "border-line bg-surface text-ink opacity-40"
+                    : "border-line bg-surface text-ink enabled:hover:border-ink-2 enabled:hover:bg-canvas enabled:active:bg-sunken"
+                }`}
+              >
+                <span
+                  className={`flex h-11 w-11 flex-none items-center justify-center rounded-lg border-2 font-mono text-[20px] font-bold ${
+                    isLocked ? "border-white bg-white text-ink" : "border-line-strong bg-canvas text-ink"
+                  }`}
+                  aria-hidden="true"
                 >
-                  <div className="flex items-start gap-3">
-                    <span
-                      className={`mt-0.5 flex-shrink-0 h-7 w-7 rounded-full border-2 flex items-center justify-center text-sm font-bold transition-all ${
-                        revealed && isCorrect
-                          ? "border-green-500 bg-green-500 text-white"
-                          : revealed && isSelected && !isCorrect
-                          ? "border-red-500 bg-red-500 text-white"
-                          : "border-slate-300 bg-white text-slate-600"
-                      }`}
-                    >
-                      {revealed && isCorrect
-                        ? "✓"
-                        : revealed && isSelected && !isCorrect
-                        ? "✗"
-                        : displayLabel}
-                    </span>
-                    <span className="text-lg text-slate-700 leading-snug">{optionText}</span>
-                  </div>
-                </button>
-              );
-            })}
-          </div>
+                  {key}
+                </span>
+                <span className="flex-1 text-[clamp(18px,calc(0.6vw+12px),23px)] font-medium leading-[1.32]">
+                  <span className="sr-only-live">Option {key}: </span>
+                  {question.options[key]}
+                </span>
+                {isLocked && (
+                  <span className="flex flex-none items-center gap-1.5 text-[13px] font-bold uppercase tracking-[0.14em]">
+                    <LockIcon className="h-4 w-4" />
+                    Locked
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
+
+        <p className="mt-3 text-[14px] font-medium text-ink-3 [@media(max-height:740px)]:hidden">
+          Tap or click an option, or press <Kbd>A</Kbd>–<Kbd>D</Kbd>. Each decision locks immediately.
+        </p>
       </div>
-    </div>
+    </section>
+  );
+}
+
+function Kbd({ children }: { children: React.ReactNode }) {
+  return (
+    <kbd className="rounded border border-line-strong bg-canvas px-1.5 py-0.5 font-mono text-[12px] font-semibold text-ink-2">
+      {children}
+    </kbd>
   );
 }

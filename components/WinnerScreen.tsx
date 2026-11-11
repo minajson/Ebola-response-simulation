@@ -1,201 +1,243 @@
 "use client";
 
-import { useEffect } from "react";
-import { TeamResult } from "@/components/GameShell";
+import { useEffect, useRef, useState } from "react";
+import type { Team } from "@/data/questions";
+import type { TeamResult } from "@/lib/types";
+import TopBar from "@/components/TopBar";
+import Trophy from "@/components/Trophy";
+import Confetti from "@/components/Confetti";
+import Button from "@/components/ui/Button";
+import { Kicker, TeamChip } from "@/components/ui/Brand";
+import { ArrowLeftIcon, CompressIcon, ExpandIcon, ReplayIcon } from "@/components/ui/icons";
+import { TEAM_INFO } from "@/lib/config";
+import { usePreferences } from "@/lib/preferences";
+import { decideWinner, type Winner } from "@/lib/round";
 import {
-  clampExposure,
+  formatPoints,
   getExposureLabel,
-  getExposureTextColor,
-  getOutcomeColor,
+  getOutbreakLabel,
+  getOutbreakRisk,
   getPatientOutcome,
+  PATIENT_OUTCOME_DETAIL,
 } from "@/lib/scoring";
-import { playWinner } from "@/lib/sound";
+import { playCue } from "@/lib/sound";
 
 interface WinnerScreenProps {
   teamAResult: TeamResult;
   teamBResult: TeamResult;
   onRestart: () => void;
+  onBackToReview: () => void;
 }
 
-export default function WinnerScreen({ teamAResult, teamBResult, onRestart }: WinnerScreenProps) {
+const COUNT_MS = 1600;
+const REVEAL_PAUSE_MS = 450;
+
+export default function WinnerScreen({ teamAResult, teamBResult, onRestart, onBackToReview }: WinnerScreenProps) {
+  const prefs = usePreferences();
+  const winner = decideWinner(teamAResult, teamBResult);
+  const [shown, setShown] = useState<Record<Team, number>>({ A: 0, B: 0 });
+  const [revealed, setRevealed] = useState(false);
+  const revealSoundRef = useRef(false);
+  const celebrateSoundRef = useRef(false);
+  const reduceMotionRef = useRef(prefs.reduceMotion);
+
+  // Count-up reveal. Sounds are ref-guarded so StrictMode/re-renders never repeat them.
   useEffect(() => {
-    playWinner();
-  }, []);
+    const finalScores = { A: teamAResult.score, B: teamBResult.score };
+    const celebrate = () => {
+      setRevealed(true);
+      if (!celebrateSoundRef.current) {
+        celebrateSoundRef.current = true;
+        playCue("celebrate");
+      }
+    };
+    if (reduceMotionRef.current) {
+      setShown(finalScores);
+      celebrate();
+      return;
+    }
+    if (!revealSoundRef.current) {
+      revealSoundRef.current = true;
+      playCue("reveal");
+    }
+    const start = performance.now();
+    let raf = 0;
+    let timeout = 0;
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / COUNT_MS);
+      const eased = 1 - Math.pow(1 - t, 3);
+      setShown({ A: Math.round(finalScores.A * eased), B: Math.round(finalScores.B * eased) });
+      if (t < 1) raf = requestAnimationFrame(step);
+      else timeout = window.setTimeout(celebrate, REVEAL_PAUSE_MS);
+    };
+    raf = requestAnimationFrame(step);
+    return () => {
+      cancelAnimationFrame(raf);
+      window.clearTimeout(timeout);
+    };
+  }, [teamAResult.score, teamBResult.score]);
 
-  const winner: "A" | "B" | "TIE" =
-    teamAResult.score > teamBResult.score
-      ? "A"
-      : teamBResult.score > teamAResult.score
-      ? "B"
-      : "TIE";
-
-  const winnerMessage = {
-    A: "Team A demonstrated superior Ebola response decision-making. Excellent containment protocol execution!",
-    B: "Team B demonstrated superior Ebola response decision-making. Excellent containment protocol execution!",
-    TIE: "Both teams showed equal command of Ebola response protocols. Outstanding performance from all participants!",
-  }[winner];
+  const headline = winner === "TIE" ? "It’s a tie" : `${TEAM_INFO[winner].name} wins`;
+  const message =
+    winner === "TIE"
+      ? `Both teams finished level on ${formatPoints(teamAResult.score)} points. Congratulations to everyone — shared honours.`
+      : `Congratulations, ${TEAM_INFO[winner].name} — the strongest set of response decisions in today’s simulation. Well played, ${
+          TEAM_INFO[winner === "A" ? "B" : "A"].name
+        }: every decision reviewed today strengthens site preparedness.`;
 
   return (
-    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-center py-10 px-4">
-      {/* Winner banner */}
-      <div className="w-full max-w-2xl text-center mb-10">
-        <div className="inline-flex items-center gap-2 rounded-full border border-slate-300 bg-white px-5 py-2 mb-5 shadow-sm">
-          <span className="text-xs uppercase tracking-widest text-slate-500 font-bold">
-            Simulation Complete — Final Results
-          </span>
+    <div className="relative flex h-[100dvh] flex-col bg-canvas">
+      <TopBar />
+
+      <main className="min-h-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex min-h-full w-full max-w-[1240px] flex-col justify-center gap-[clamp(12px,2vh,26px)] px-5 py-[clamp(12px,2.2vh,30px)] sm:px-8">
+          <section className="flex flex-col items-center gap-4 text-center sm:flex-row sm:gap-8 sm:text-left" aria-live="polite">
+            <div className={`flex-none transition-all duration-700 ${revealed ? "scale-100 opacity-100" : "scale-90 opacity-0"}`}>
+              <Trophy className="h-[clamp(80px,13vh,176px)] w-auto" label={winner === "TIE" ? "Shared trophy" : `${headline} trophy`} />
+            </div>
+            <div className="min-w-0">
+              <Kicker>Final results</Kicker>
+              {revealed ? (
+                <div className="animate-reveal-in">
+                  <h1 className="mt-1 text-[clamp(38px,4.2vw,76px)] font-extrabold leading-[1.02] tracking-[-0.025em] text-ink">
+                    {headline}
+                  </h1>
+                  <p className="mt-2 max-w-[72ch] text-[clamp(17px,1.35vw,23px)] font-medium leading-snug text-ink-2">{message}</p>
+                </div>
+              ) : (
+                <div>
+                  <h1 className="mt-1 text-[clamp(38px,4.2vw,76px)] font-extrabold leading-[1.02] tracking-[-0.025em] text-ink-3">
+                    Final scores
+                  </h1>
+                  <p className="mt-2 text-[clamp(17px,1.35vw,23px)] font-medium text-ink-3">Revealing…</p>
+                </div>
+              )}
+            </div>
+          </section>
+
+          <section className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:gap-6" aria-label="Team results">
+            <ScorePanel result={teamAResult} shownScore={shown.A} winner={winner} revealed={revealed} />
+            <ScorePanel result={teamBResult} shownScore={shown.B} winner={winner} revealed={revealed} />
+          </section>
+
+          <p className="text-center text-[13px] font-medium leading-snug text-ink-3">
+            Scores and ratings reflect decisions made in this training simulation. They do not predict real-world patient
+            survival or infection risk.
+          </p>
+
+          <div className="flex flex-wrap items-center justify-center gap-3 pb-2">
+            <Button variant="primary" size="lg" onClick={onRestart} className="px-8">
+              <ReplayIcon className="h-5 w-5" />
+              Replay Game
+            </Button>
+            <Button size="lg" onClick={onBackToReview}>
+              <ArrowLeftIcon className="h-5 w-5" />
+              Back to review
+            </Button>
+            {prefs.fullscreenSupported && (
+              <Button size="lg" onClick={prefs.toggleFullscreen} aria-pressed={prefs.isFullscreen}>
+                {prefs.isFullscreen ? <CompressIcon className="h-5 w-5" /> : <ExpandIcon className="h-5 w-5" />}
+                {prefs.isFullscreen ? "Exit full screen" : "Full screen"}
+              </Button>
+            )}
+          </div>
         </div>
+      </main>
 
-        {winner === "TIE" ? (
-          <>
-            <div className="text-6xl mb-4">🤝</div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-3">It&apos;s a Tie!</h1>
-          </>
-        ) : (
-          <>
-            <div className="text-6xl mb-4">🏆</div>
-            <h1 className="text-4xl font-bold text-slate-800 mb-3">
-              Team{" "}
-              <span className={winner === "A" ? "text-orange-500" : "text-blue-600"}>
-                {winner}
-              </span>{" "}
-              Wins!
-            </h1>
-          </>
+      {revealed && !prefs.reduceMotion && <Confetti />}
+    </div>
+  );
+}
+
+type Tone = "safe" | "caution" | "alert" | "ink";
+const TONE_TEXT: Record<Tone, string> = { safe: "text-safe", caution: "text-caution", alert: "text-alert", ink: "text-ink" };
+
+function containmentPerformance(result: TeamResult): { text: string; tone: Tone } {
+  const label = getOutbreakLabel(getOutbreakRisk(result.exposureLevel));
+  // Unmade decisions can't count as control: don't report "Controlled" for an incomplete round.
+  if (result.unanswered > 0 && label === "Controlled") return { text: "Incomplete", tone: "caution" };
+  return { text: label, tone: label === "Controlled" ? "safe" : label === "Elevated" ? "caution" : "alert" };
+}
+
+function ScorePanel({
+  result,
+  shownScore,
+  winner,
+  revealed,
+}: {
+  result: TeamResult;
+  shownScore: number;
+  winner: Winner;
+  revealed: boolean;
+}) {
+  const isWinner = winner === result.team;
+  const isTie = winner === "TIE";
+  const highlighted = revealed && (isWinner || isTie);
+  const total = result.answers.length;
+  const exposureLabel = getExposureLabel(result.exposureLevel);
+  const exposureTone: Tone = exposureLabel === "Low" ? "safe" : exposureLabel === "Moderate" ? "caution" : "alert";
+  const containment = containmentPerformance(result);
+  const patient = getPatientOutcome(result.score);
+  const patientTone: Tone = patient === "Strong" ? "safe" : patient === "Partial" ? "caution" : "alert";
+
+  const rows: Array<{ label: string; value: string; tone: Tone; note?: string }> = [
+    { label: "Correct answers", value: `${result.correctAnswers} / ${total}`, tone: "ink" },
+    {
+      label: "Health worker exposure",
+      value: `${exposureLabel} · ${Math.round(result.exposureLevel)}`,
+      tone: exposureTone,
+      note: result.unanswered > 0 ? `Based on ${total - result.unanswered} of ${total} decisions made` : undefined,
+    },
+    {
+      label: "Containment performance",
+      value: containment.text,
+      tone: containment.tone,
+      note: result.unanswered > 0 ? `${result.unanswered} unanswered at time-out` : undefined,
+    },
+    { label: "Patient Management Performance", value: patient, tone: patientTone, note: PATIENT_OUTCOME_DETAIL[patient] },
+  ];
+
+  return (
+    <article
+      className={`rounded-2xl border-2 bg-surface px-6 py-4 transition-[border-color,box-shadow] duration-700 ${
+        highlighted ? "border-gold-fill shadow-[0_0_0_6px_#F8F0DC]" : "border-line shadow-card"
+      }`}
+      aria-label={`${TEAM_INFO[result.team].name} results`}
+    >
+      <div className="flex items-center justify-between gap-3">
+        <TeamChip team={result.team} />
+        {revealed && (isWinner || isTie) && (
+          <span className="animate-fade-in rounded-lg border border-gold-line bg-gold-soft px-3 py-1 text-[14px] font-bold uppercase tracking-[0.12em] text-gold">
+            {isTie ? "Shared honours" : "Winner"}
+          </span>
         )}
+      </div>
 
-        <p className="text-slate-600 text-base leading-relaxed max-w-lg mx-auto">
-          {winnerMessage}
+      <div className="mt-3 flex items-end justify-between gap-4">
+        <div>
+          <p className="text-[12px] font-bold uppercase tracking-[0.14em] text-ink-3">Final score</p>
+          <p className="mt-1 font-mono text-[clamp(48px,5vw,100px)] font-bold leading-none text-ink tabular">
+            {formatPoints(shownScore)}
+          </p>
+        </div>
+        <p className={`pb-2 text-right text-[15px] font-medium leading-snug text-ink-2 transition-opacity duration-500 ${revealed ? "opacity-100" : "opacity-0"}`}>
+          Decisions {formatPoints(result.decisionPoints)}
+          <br />
+          Speed bonus {result.speedBonus > 0 ? formatPoints(result.speedBonus) : "—"}
         </p>
       </div>
 
-      {/* Side-by-side comparison */}
-      <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-6 mb-10">
-        <TeamSummaryCard result={teamAResult} winner={winner} />
-        <TeamSummaryCard result={teamBResult} winner={winner} />
-      </div>
-
-      {/* Key takeaways */}
-      <div className="w-full max-w-3xl rounded-xl border border-amber-200 bg-amber-50 p-6 mb-10">
-        <h2 className="text-sm uppercase tracking-widest text-amber-700 font-bold mb-3">
-          Key Training Takeaways
-        </h2>
-        <ul className="space-y-2 text-sm text-slate-700 leading-relaxed">
-          <li className="flex gap-2">
-            <span className="text-amber-500 flex-shrink-0">▶</span>
-            Full PPE must be donned BEFORE any contact with a suspected Ebola patient — no exceptions.
-          </li>
-          <li className="flex gap-2">
-            <span className="text-amber-500 flex-shrink-0">▶</span>
-            Contact tracing and isolation begin on SUSPICION — never wait for laboratory confirmation.
-          </li>
-          <li className="flex gap-2">
-            <span className="text-amber-500 flex-shrink-0">▶</span>
-            Occupational health authority supersedes line management during infectious disease emergencies.
-          </li>
-          <li className="flex gap-2">
-            <span className="text-amber-500 flex-shrink-0">▶</span>
-            No visitor access, no transport without proper PPE, no unmonitored exposed workers.
-          </li>
-          <li className="flex gap-2">
-            <span className="text-amber-500 flex-shrink-0">▶</span>
-            Symptomatic household contacts must be assessed at home — never directed to travel to a clinic.
-          </li>
-        </ul>
-      </div>
-
-      <button
-        onClick={onRestart}
-        className="rounded-xl bg-slate-800 hover:bg-slate-700 text-white font-bold px-10 py-4 text-base transition-colors border border-slate-600 shadow-md"
-      >
-        Play Again
-      </button>
-    </div>
-  );
-}
-
-function TeamSummaryCard({
-  result,
-  winner,
-}: {
-  result: TeamResult;
-  winner: "A" | "B" | "TIE";
-}) {
-  const isWinner = winner !== "TIE" && winner === result.team;
-  const exposure = clampExposure(result.exposureLevel);
-  const exposureLabel = getExposureLabel(exposure);
-  const exposureColor = getExposureTextColor(exposureLabel);
-  const outcome = getPatientOutcome(result.score);
-  const outcomeColor = getOutcomeColor(outcome);
-
-  const teamColor = result.team === "A" ? "text-orange-600" : "text-blue-600";
-  const winnerBorder =
-    result.team === "A"
-      ? "border-orange-400 shadow-lg shadow-orange-100"
-      : "border-blue-400 shadow-lg shadow-blue-100";
-  const winnerBadge =
-    result.team === "A"
-      ? "text-orange-600 border-orange-300 bg-orange-50"
-      : "text-blue-600 border-blue-300 bg-blue-50";
-
-  return (
-    <div
-      className={`rounded-2xl border p-6 bg-white transition-all ${
-        isWinner ? winnerBorder : "border-slate-200 shadow-sm"
-      }`}
-    >
-      <div className="flex items-center justify-between mb-4">
-        <h3 className={`text-xl font-bold ${teamColor}`}>Team {result.team}</h3>
-        {isWinner && (
-          <span
-            className={`text-xs uppercase tracking-widest font-bold border rounded-full px-2 py-0.5 ${winnerBadge}`}
-          >
-            Winner
-          </span>
-        )}
-      </div>
-
-      <div className="space-y-3 text-sm">
-        <Row
-          label="Score"
-          value={String(result.score)}
-          valueClass={
-            result.score >= 60
-              ? "text-green-600"
-              : result.score >= 35
-              ? "text-amber-600"
-              : "text-red-600"
-          }
-        />
-        <Row label="Correct Answers" value={`${result.correctAnswers} / 7`} valueClass="text-slate-800" />
-        <Row label="HW Exposure Level" value={exposureLabel} valueClass={exposureColor} />
-        <Row
-          label="Time Bonus"
-          value={result.completedBeforeTime ? "Yes (+5)" : "No"}
-          valueClass={result.completedBeforeTime ? "text-green-600" : "text-slate-400"}
-        />
-      </div>
-
-      <div className="mt-4 pt-4 border-t border-slate-200">
-        <p className="text-xs text-slate-400 mb-1">Patient Outcome</p>
-        <p className={`text-sm font-semibold leading-tight ${outcomeColor}`}>{outcome}</p>
-      </div>
-    </div>
-  );
-}
-
-function Row({
-  label,
-  value,
-  valueClass,
-}: {
-  label: string;
-  value: string;
-  valueClass: string;
-}) {
-  return (
-    <div className="flex justify-between items-center">
-      <span className="text-slate-500">{label}</span>
-      <span className={`font-bold ${valueClass}`}>{value}</span>
-    </div>
+      <dl className={`mt-3 divide-y divide-line border-t border-line transition-opacity duration-700 ${revealed ? "opacity-100" : "opacity-0"}`}>
+        {rows.map((r) => (
+          <div key={r.label} className="flex items-baseline justify-between gap-4 py-1.5">
+            <dt className="flex-none whitespace-nowrap text-[15px] font-semibold text-ink-2">{r.label}</dt>
+            <dd className="text-right">
+              <span className={`text-[18px] font-bold ${TONE_TEXT[r.tone]}`}>{r.value}</span>
+              {r.note && <span className="block text-[13px] font-medium text-ink-3">{r.note}</span>}
+            </dd>
+          </div>
+        ))}
+      </dl>
+    </article>
   );
 }

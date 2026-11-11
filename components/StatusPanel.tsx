@@ -1,146 +1,147 @@
 "use client";
 
+import type { Question } from "@/data/questions";
+import type { AnswerRecord } from "@/lib/types";
+import RiskMeter, { type RiskLevel } from "@/components/RiskMeter";
 import {
   clampExposure,
-  getExposureColor,
   getExposureLabel,
-  getExposureTextColor,
+  getOutbreakLabel,
   getOutbreakRisk,
-  getPatientOutcome,
-  getOutcomeColor,
+  type ExposureLabel,
+  type OutbreakLabel,
 } from "@/lib/scoring";
 
-interface StatusPanelProps {
-  score: number;
-  exposure: number;
-  questionIndex: number;
-  totalQuestions: number;
-  team: "A" | "B";
+export interface LastDecision {
+  record: AnswerRecord;
+  question: Question;
 }
 
+interface StatusPanelProps {
+  exposure: number;
+  lastDecision: LastDecision | null;
+  answered: number;
+  total: number;
+  currentIndex: number;
+  exposureAlert: number;
+  outbreakAlert: number;
+}
+
+const EXPOSURE_LEVEL: Record<ExposureLabel, RiskLevel> = { Low: "ok", Moderate: "warn", High: "high" };
+const OUTBREAK_LEVEL: Record<OutbreakLabel, RiskLevel> = { Controlled: "ok", Elevated: "warn", Critical: "high" };
+
+type PatientTone = "neutral" | "safe" | "caution" | "alert";
+
+const PATIENT_TONE: Record<PatientTone, { dot: string; text: string }> = {
+  neutral: { dot: "bg-ink-3", text: "text-ink" },
+  safe: { dot: "bg-safe-fill", text: "text-safe" },
+  caution: { dot: "bg-caution-fill", text: "text-caution" },
+  alert: { dot: "bg-alert", text: "text-alert" },
+};
+
+function patientStatus(last: LastDecision | null, exposureLabel: ExposureLabel) {
+  // Before any decision: neutral — never a negative outcome.
+  if (!last) {
+    return { tone: "neutral" as PatientTone, headline: "Under assessment", detail: "Awaiting the team's first decision." };
+  }
+  const correct = last.record.isCorrect;
+  const detail =
+    (correct ? last.question.patientImpact.correct : last.question.patientImpact.wrong) || "Status update pending.";
+  if (correct) return { tone: "safe" as PatientTone, headline: "Stable", detail };
+  if (exposureLabel === "High") return { tone: "alert" as PatientTone, headline: "Critical", detail };
+  return { tone: "caution" as PatientTone, headline: "At risk", detail };
+}
+
+/** Narrow right-hand monitoring column. All values are simulation indicators. */
 export default function StatusPanel({
-  score,
   exposure,
-  questionIndex,
-  totalQuestions,
-  team,
+  lastDecision,
+  answered,
+  total,
+  currentIndex,
+  exposureAlert,
+  outbreakAlert,
 }: StatusPanelProps) {
   const safeExposure = clampExposure(exposure);
   const exposureLabel = getExposureLabel(safeExposure);
-  const exposureBarColor = getExposureColor(exposureLabel);
-  const exposureTextColor = getExposureTextColor(exposureLabel);
-
   const outbreakRisk = getOutbreakRisk(safeExposure);
-  const outbreakBarColor =
-    outbreakRisk >= 60 ? "bg-red-500" : outbreakRisk >= 35 ? "bg-amber-500" : "bg-emerald-500";
+  const outbreakLabel = getOutbreakLabel(outbreakRisk);
+  const patient = patientStatus(lastDecision, exposureLabel);
+  const pt = PATIENT_TONE[patient.tone];
 
-  const patientOutcome = getPatientOutcome(score);
-  const outcomeColor = getOutcomeColor(patientOutcome);
+  const containmentDetail = lastDecision
+    ? (lastDecision.record.isCorrect
+        ? lastDecision.question.containmentImpact.correct
+        : lastDecision.question.containmentImpact.wrong) || "Containment update pending."
+    : "Baseline — no decisions yet.";
 
-  const patientIcon =
-    patientOutcome === "Stabilized and safely evacuated"
-      ? "🟢"
-      : patientOutcome === "Critical — containment partially achieved"
-      ? "🟡"
-      : "🔴";
-
-  const teamColor = team === "A" ? "text-orange-600" : "text-blue-600";
-  const teamBadgeStyle =
-    team === "A"
-      ? "border-orange-200 bg-orange-50"
-      : "border-blue-200 bg-blue-50";
+  const exposureDetail = lastDecision
+    ? exposureLabel === "High"
+      ? "Health worker protection compromised."
+      : exposureLabel === "Moderate"
+      ? "Protection gaps emerging."
+      : "Health worker protection holding."
+    : "Baseline exposure at incident start.";
 
   return (
-    <div className="flex flex-col gap-2 h-full overflow-y-auto">
-      {/* Team badge */}
-      <div className={`rounded-lg border px-3 py-2 flex items-center justify-between ${teamBadgeStyle}`}>
-        <span className="text-sm font-semibold text-slate-500 uppercase tracking-widest">
-          Active Team
-        </span>
-        <span className={`text-xl font-extrabold ${teamColor}`}>Team {team}</span>
+    <aside aria-label="Incident monitor" className="flex h-full min-h-0 flex-col gap-3 overflow-y-auto">
+      <div className="rounded-xl border-2 border-line bg-surface px-4 py-3.5">
+        <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-ink-3">Patient status</p>
+        <div className="mt-1.5 flex items-center gap-2.5">
+          <span className={`h-3 w-3 flex-none rounded-full ${pt.dot}`} aria-hidden="true" />
+          <p className={`text-[26px] font-bold leading-tight ${pt.text}`} aria-live="polite">
+            {patient.headline}
+          </p>
+        </div>
+        <p className="mt-1.5 line-clamp-2 text-[15px] font-medium leading-snug text-ink-2">{patient.detail}</p>
       </div>
 
-      {/* Score */}
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <p className="text-xs uppercase tracking-widest text-slate-400 mb-0.5">Decision Score</p>
-        <p className={`text-3xl font-bold tabular-nums ${score < 0 ? "text-red-600" : "text-slate-800"}`}>
-          {score >= 0 ? "+" : ""}
-          {score}
-        </p>
+      <RiskMeter
+        title="Health worker exposure"
+        value={safeExposure}
+        level={EXPOSURE_LEVEL[exposureLabel]}
+        levelText={exposureLabel}
+        detail={exposureDetail}
+        thresholds={[20, 50]}
+        alertKey={exposureAlert}
+      />
+
+      <RiskMeter
+        title="Outbreak risk"
+        value={outbreakRisk}
+        level={OUTBREAK_LEVEL[outbreakLabel]}
+        levelText={outbreakLabel}
+        detail={containmentDetail}
+        thresholds={[35, 60]}
+        alertKey={outbreakAlert}
+      />
+
+      <div className="rounded-xl border-2 border-line bg-surface px-4 py-3.5">
+        <div className="flex items-baseline justify-between">
+          <p className="text-[13px] font-bold uppercase tracking-[0.12em] text-ink-3">Progress</p>
+          <p className="text-[15px] font-semibold text-ink-2">
+            <span className="font-mono font-bold text-ink tabular">{answered}</span> of {total} locked
+          </p>
+        </div>
+        <ol className="mt-2.5 flex gap-1.5" aria-label={`${answered} of ${total} decisions locked`}>
+          {Array.from({ length: total }).map((_, i) => {
+            const done = i < answered;
+            const current = !done && i === currentIndex;
+            return (
+              <li
+                key={i}
+                className={`h-3 flex-1 rounded-full transition-colors duration-300 ${
+                  done ? "bg-ink" : current ? "bg-surface ring-2 ring-inset ring-alert" : "bg-sunken"
+                }`}
+              />
+            );
+          })}
+        </ol>
       </div>
 
-      {/* Progress */}
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <p className="text-xs uppercase tracking-widest text-slate-400 mb-1.5">
-          Scenario Progress
-        </p>
-        <div className="flex gap-1">
-          {Array.from({ length: totalQuestions }).map((_, i) => (
-            <div
-              key={i}
-              className={`h-2 flex-1 rounded-full transition-all ${
-                i < questionIndex
-                  ? "bg-emerald-500"
-                  : i === questionIndex
-                  ? "bg-orange-400"
-                  : "bg-slate-200"
-              }`}
-            />
-          ))}
-        </div>
-        <p className="mt-1 text-xs text-slate-400 text-right">
-          {questionIndex}/{totalQuestions} done
-        </p>
-      </div>
-
-      {/* Patient status */}
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <p className="text-xs uppercase tracking-widest text-slate-400 mb-1">Patient Status</p>
-        <div className="flex items-start gap-2">
-          <span className="text-lg leading-tight">{patientIcon}</span>
-          <p className={`text-sm font-semibold leading-tight ${outcomeColor}`}>{patientOutcome}</p>
-        </div>
-      </div>
-
-      {/* HW Exposure */}
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <div className="flex justify-between items-center mb-1">
-          <p className="text-xs uppercase tracking-widest text-slate-400">HW Exposure</p>
-          <span className={`text-xs font-bold ${exposureTextColor}`}>{exposureLabel}</span>
-        </div>
-        <div className="h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${exposureBarColor}`}
-            style={{ width: `${safeExposure}%` }}
-          />
-        </div>
-        <p className="mt-0.5 text-xs text-slate-400 text-right">{safeExposure}%</p>
-      </div>
-
-      {/* Outbreak risk */}
-      <div className="rounded-lg border border-slate-200 bg-white px-3 py-2">
-        <div className="flex justify-between items-center mb-1">
-          <p className="text-xs uppercase tracking-widest text-slate-400">Outbreak Risk</p>
-          <span
-            className={`text-xs font-bold ${
-              outbreakRisk >= 60
-                ? "text-red-600"
-                : outbreakRisk >= 35
-                ? "text-amber-600"
-                : "text-green-600"
-            }`}
-          >
-            {outbreakRisk >= 60 ? "Critical" : outbreakRisk >= 35 ? "Elevated" : "Controlled"}
-          </span>
-        </div>
-        <div className="h-2.5 w-full rounded-full bg-slate-200 overflow-hidden">
-          <div
-            className={`h-full rounded-full transition-all duration-500 ${outbreakBarColor}`}
-            style={{ width: `${outbreakRisk}%` }}
-          />
-        </div>
-        <p className="mt-0.5 text-xs text-slate-400 text-right">{outbreakRisk}%</p>
-      </div>
-    </div>
+      <p className="mt-auto px-1 text-[12px] font-medium leading-snug text-ink-3">
+        Indicators are simulation aids, not infection probabilities.
+      </p>
+    </aside>
   );
 }

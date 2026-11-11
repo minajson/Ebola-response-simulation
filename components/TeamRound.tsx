@@ -1,143 +1,243 @@
 "use client";
 
-import { useCallback, useRef, useState } from "react";
-import { OptionKey, Question } from "@/data/questions";
-import { TeamResult, AnswerRecord } from "@/components/GameShell";
-import Timer from "@/components/Timer";
-import ScenarioCard from "@/components/ScenarioCard";
-import StatusPanel from "@/components/StatusPanel";
+import { useCallback, useEffect, useRef, useState } from "react";
+import type { OptionKey, Question, Team } from "@/data/questions";
+import type { TeamResult } from "@/lib/types";
+import RoundHeader from "@/components/RoundHeader";
+import ScenarioCard, { OPTION_KEYS } from "@/components/ScenarioCard";
+import StatusPanel, { type LastDecision } from "@/components/StatusPanel";
+import { ClockIcon } from "@/components/ui/icons";
 import {
-  calculateScoreDelta,
-  clampExposure,
-  COMPLETION_BONUS,
-  INITIAL_EXPOSURE,
-} from "@/lib/scoring";
+  COUNTDOWN_BEEPS_FROM,
+  COUNTDOWN_FINAL_FROM,
+  LOCK_TRANSITION_MS,
+  ROUND_SECONDS,
+  TIMEOUT_HOLD_MS,
+  TIMER_AMBER_AT,
+  TIMER_RED_AT,
+} from "@/lib/config";
+import { buildTeamResult, initialProgress, recordDecision, type RoundProgress } from "@/lib/round";
+import { getExposureLabel, getOutbreakLabel, getOutbreakRisk } from "@/lib/scoring";
+import { playCue } from "@/lib/sound";
+import { useCountdown } from "@/lib/useCountdown";
 
 interface TeamRoundProps {
-  team: "A" | "B";
+  team: Team;
   questions: Question[];
-  initialExposure?: number;
   onComplete: (result: TeamResult) => void;
 }
 
-export default function TeamRound({
-  team,
-  questions,
-  initialExposure = INITIAL_EXPOSURE,
-  onComplete,
-}: TeamRoundProps) {
-  const [currentIndex, setCurrentIndex] = useState(0);
-  const [score, setScore] = useState(0);
-  const [exposure, setExposure] = useState(initialExposure);
-  const [answers, setAnswers] = useState<AnswerRecord[]>([]);
-  const [timeExpired, setTimeExpired] = useState(false);
+type RoundStatus = "playing" | "locking" | "allAnswered" | "expired";
 
-  // Refs to capture latest values in callbacks without stale closures
-  const stateRef = useRef({ score, exposure, answers, currentIndex });
-  stateRef.current = { score, exposure, answers, currentIndex };
+export default function TeamRound({ team, questions, onComplete }: TeamRoundProps) {
+  const [progress, setProgress] = useState<RoundProgress>(() => initialProgress());
+  const [index, setIndex] = useState(0);
+  const [lockedKey, setLockedKey] = useState<OptionKey | null>(null);
+  const [status, setStatus] = useState<RoundStatus>("playing");
+  const [lastDecision, setLastDecision] = useState<LastDecision | null>(null);
+  const [alerts, setAlerts] = useState({ exposure: 0, outbreak: 0 });
+  const [announcement, setAnnouncement] = useState("");
 
-  const finaliseRound = useCallback(
+  // Refs mirror state for handlers/timeouts so nothing reads a stale closure.
+  const progressRef = useRef(progress);
+  const statusRef = useRef<RoundStatus>("playing");
+  const indexRef = useRef(0);
+  const remainingRef = useRef(ROUND_SECONDS);
+  const finishedRef = useRef(false);
+  const warnedRef = useRef<Set<number>>(new Set());
+  const pendingRef = useRef<number[]>([]);
+  const startedRef = useRef(false);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
+
+  const setRoundStatus = (s: RoundStatus) => {
+    statusRef.current = s;
+    setStatus(s);
+  };
+
+  const schedule = (fn: () => void, ms: number) => {
+    pendingRef.current.push(window.setTimeout(fn, ms));
+  };
+
+  const finish = useCallback(
     (completedBeforeTime: boolean) => {
-      const { score: s, exposure: e, answers: a } = stateRef.current;
-      const finalScore = completedBeforeTime ? s + COMPLETION_BONUS : s;
-      onComplete({
-        team,
-        score: finalScore,
-        correctAnswers: a.filter((x) => x.isCorrect).length,
-        exposureLevel: clampExposure(e),
-        answers: a,
-        completedBeforeTime,
-      });
+      if (finishedRef.current) return;
+      finishedRef.current = true;
+      onCompleteRef.current(
+        buildTeamResult(team, questions, progressRef.current, completedBeforeTime, remainingRef.current),
+      );
     },
-    [team, onComplete],
+    [team, questions],
   );
 
-  const handleTimerExpire = useCallback(() => {
-    setTimeExpired(true);
-    finaliseRound(false);
-  }, [finaliseRound]);
+  // Incident-start alert — exactly once per round, even under StrictMode.
+  useEffect(() => {
+    if (startedRef.current) return;
+    startedRef.current = true;
+    playCue("incident");
+  }, []);
 
-  function handleAnswer(selectedKey: OptionKey, isCorrect: boolean) {
-    const q = questions[currentIndex];
-    const scoreDelta = calculateScoreDelta(isCorrect);
-    const exposureDelta = isCorrect ? q.exposureImpact.correct : q.exposureImpact.wrong;
+  // Clear any pending transitions on unmount (restart / navigation).
+  useEffect(() => {
+    const pending = pendingRef.current;
+    return () => {
+      pending.forEach((id) => window.clearTimeout(id));
+      pending.length = 0;
+    };
+  }, []);
 
-    const newScore = score + scoreDelta;
-    const newExposure = clampExposure(exposure + exposureDelta);
-    const newAnswers: AnswerRecord[] = [
-      ...answers,
-      { questionId: q.id, selectedAnswer: selectedKey, isCorrect },
-    ];
-
-    setScore(newScore);
-    setExposure(newExposure);
-    setAnswers(newAnswers);
-
-    const nextIndex = currentIndex + 1;
-    if (nextIndex >= questions.length) {
-      finaliseRound(true);
-    } else {
-      setCurrentIndex(nextIndex);
+  const onSecond = useCallback((sec: number, prev: number) => {
+    remainingRef.current = sec;
+    const warn = (threshold: number, cue: "warn45" | "warn20", message: string) => {
+      if (prev > threshold && sec <= threshold && !warnedRef.current.has(threshold)) {
+        warnedRef.current.add(threshold);
+        playCue(cue);
+        setAnnouncement(message);
+      }
+    };
+    warn(TIMER_AMBER_AT, "warn45", `${TIMER_AMBER_AT} seconds remaining`);
+    warn(TIMER_RED_AT, "warn20", `${TIMER_RED_AT} seconds remaining`);
+    if (sec >= 1 && sec <= COUNTDOWN_BEEPS_FROM) {
+      playCue(sec <= COUNTDOWN_FINAL_FROM ? "tickFinal" : "tick");
+      if (sec === COUNTDOWN_BEEPS_FROM) setAnnouncement(`${COUNTDOWN_BEEPS_FROM} seconds remaining`);
     }
-  }
+  }, []);
 
-  const teamColor = team === "A" ? "text-orange-600" : "text-blue-600";
-  const teamDot = team === "A" ? "bg-orange-500" : "bg-blue-500";
+  const onExpire = useCallback(() => {
+    if (finishedRef.current || statusRef.current === "allAnswered") return;
+    remainingRef.current = 0;
+    setRoundStatus("expired");
+    setLockedKey(null);
+    setAnnouncement("Time expired. Round closed.");
+    playCue("timeout");
+    schedule(() => finish(false), TIMEOUT_HOLD_MS);
+  }, [finish]);
 
-  if (timeExpired) {
-    return (
-      <div className="min-h-screen bg-white flex items-center justify-center">
-        <div className="text-center">
-          <p className="text-5xl mb-3">⏱</p>
-          <p className="text-2xl font-bold text-slate-800 mb-1">Time&apos;s up!</p>
-          <p className="text-slate-500">Compiling Team {team} results…</p>
-        </div>
-      </div>
-    );
-  }
+  const running = status === "playing" || status === "locking";
+  const seconds = useCountdown(ROUND_SECONDS, running, onSecond, onExpire);
 
-  const currentQuestion = questions[currentIndex];
+  const handleSelect = useCallback(
+    (key: OptionKey) => {
+      if (finishedRef.current || statusRef.current !== "playing") return;
+      const i = indexRef.current;
+      const question = questions[i];
+      if (!question) return;
+
+      // Record the decision immediately, so a timeout during the transition cannot lose it.
+      const before = progressRef.current;
+      const after = recordDecision(before, question, key);
+      progressRef.current = after;
+      setProgress(after);
+      setLockedKey(key);
+      setLastDecision({ record: after.records[after.records.length - 1], question });
+      playCue("lock");
+
+      // One-off alert when an indicator first enters its high band.
+      const exposureCrossed = getExposureLabel(before.exposure) !== "High" && getExposureLabel(after.exposure) === "High";
+      const outbreakCrossed =
+        getOutbreakLabel(getOutbreakRisk(before.exposure)) !== "Critical" &&
+        getOutbreakLabel(getOutbreakRisk(after.exposure)) === "Critical";
+      if (exposureCrossed || outbreakCrossed) {
+        setAlerts((a) => ({
+          exposure: a.exposure + (exposureCrossed ? 1 : 0),
+          outbreak: a.outbreak + (outbreakCrossed ? 1 : 0),
+        }));
+        // Keep the final countdown clean: no risk alarm over the last-10-second beeps.
+        if (remainingRef.current > COUNTDOWN_BEEPS_FROM) playCue("riskHigh", 0.16);
+      }
+
+      if (i + 1 >= questions.length) {
+        setRoundStatus("allAnswered"); // stops the clock — speed bonus earned
+        setAnnouncement("All decisions locked.");
+        schedule(() => finish(true), LOCK_TRANSITION_MS);
+      } else {
+        setRoundStatus("locking");
+        schedule(() => {
+          if (finishedRef.current || statusRef.current !== "locking") return;
+          indexRef.current = i + 1;
+          setIndex(i + 1);
+          setLockedKey(null);
+          setRoundStatus("playing");
+        }, LOCK_TRANSITION_MS);
+      }
+    },
+    [questions, finish],
+  );
+
+  // Keyboard: A–D or 1–4 select an option.
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.repeat) return;
+      const k = e.key.toUpperCase();
+      const byLetter = OPTION_KEYS.find((o) => o === k);
+      const byNumber = ["1", "2", "3", "4"].indexOf(e.key);
+      const key = byLetter ?? (byNumber >= 0 ? OPTION_KEYS[byNumber] : undefined);
+      if (key) {
+        e.preventDefault();
+        handleSelect(key);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [handleSelect]);
+
+  const question = questions[index];
+  const answered = progress.records.length;
 
   return (
-    <div className="h-screen max-h-screen overflow-hidden flex flex-col bg-white">
-      {/* Top bar */}
-      <div className="border-b border-slate-200 bg-white px-5 py-3 flex items-center justify-between flex-shrink-0">
-        <div className="flex items-center gap-2">
-          <span className={`inline-block h-2.5 w-2.5 rounded-full ${teamDot} animate-pulse`} />
-          <span className="text-sm uppercase tracking-widest text-slate-400 font-semibold">
-            Live Simulation
-          </span>
-        </div>
-        <span className={`text-lg font-extrabold uppercase tracking-wide ${teamColor}`}>
-          Team {team} —{" "}
-          {team === "A" ? "Clinic Walk-In" : "Catering Facility"}
-        </span>
-        <span className="text-sm text-slate-400 font-medium">Ebola Response Protocol</span>
-      </div>
+    <div className="flex h-[100dvh] flex-col overflow-hidden bg-canvas">
+      <RoundHeader
+        team={team}
+        scenarioNumber={index + 1}
+        totalScenarios={questions.length}
+        score={progress.score}
+        seconds={seconds}
+      />
 
-      {/* Main content — 70/30 split */}
-      <div className="flex-1 min-h-0 grid grid-cols-[1fr_300px] gap-4 p-4">
-        {/* Left: scenario card */}
+      <main className="relative grid min-h-0 flex-1 grid-cols-1 gap-4 p-3 md:grid-cols-[minmax(0,1fr)_clamp(250px,23vw,340px)] lg:gap-5 lg:p-5">
         <ScenarioCard
-          question={currentQuestion}
-          questionNumber={currentIndex + 1}
+          question={question}
+          questionNumber={index + 1}
           totalQuestions={questions.length}
-          onAnswer={handleAnswer}
+          lockedKey={lockedKey}
+          disabled={status !== "playing"}
+          onSelect={handleSelect}
         />
-
-        {/* Right: timer + status */}
-        <div className="flex flex-col gap-3 min-h-0">
-          <Timer onExpire={handleTimerExpire} paused={false} />
-          <div className="flex-1 min-h-0">
-            <StatusPanel
-              score={score}
-              exposure={exposure}
-              questionIndex={currentIndex}
-              totalQuestions={questions.length}
-              team={team}
-            />
-          </div>
+        <div className="hidden min-h-0 md:block">
+          <StatusPanel
+            exposure={progress.exposure}
+            lastDecision={lastDecision}
+            answered={answered}
+            total={questions.length}
+            currentIndex={index}
+            exposureAlert={alerts.exposure}
+            outbreakAlert={alerts.outbreak}
+          />
         </div>
+
+        {status === "expired" && <TimeExpiredNotice answered={answered} total={questions.length} />}
+      </main>
+
+      <p className="sr-only-live" aria-live="assertive">
+        {announcement}
+      </p>
+    </div>
+  );
+}
+
+function TimeExpiredNotice({ answered, total }: { answered: number; total: number }) {
+  const unanswered = total - answered;
+  return (
+    <div className="absolute inset-0 z-10 flex items-center justify-center bg-canvas/85 p-6" role="alertdialog" aria-label="Time expired">
+      <div className="w-full max-w-xl animate-reveal-in rounded-2xl border-2 border-alert-line bg-surface px-8 py-8 text-center shadow-raised">
+        <ClockIcon className="mx-auto h-10 w-10 text-alert" />
+        <p className="mt-3 text-[13px] font-bold uppercase tracking-[0.16em] text-alert">Time expired</p>
+        <p className="mt-2 text-[30px] font-bold leading-tight text-ink">Round closed</p>
+        <p className="mt-2 text-[18px] font-medium text-ink-2">
+          {unanswered > 0
+            ? `${unanswered} scenario${unanswered === 1 ? "" : "s"} recorded as unanswered.`
+            : "All decisions were recorded."}
+        </p>
       </div>
     </div>
   );
