@@ -2,8 +2,6 @@
 
 import { useState } from "react";
 import { getQuestionsForTeam, type Team } from "@/data/questions";
-import { getScenarioMeta } from "@/data/scenarioMeta";
-import type { SceneSlug } from "@/data/scenes";
 import type { TeamResult } from "@/lib/types";
 import WelcomeScreen from "@/components/WelcomeScreen";
 import TeamRound from "@/components/TeamRound";
@@ -22,10 +20,6 @@ const QUESTIONS: Record<Team, ReturnType<typeof getQuestionsForTeam>> = {
   A: getQuestionsForTeam("A"),
   B: getQuestionsForTeam("B"),
 };
-
-function scenesFor(team: Team): SceneSlug[] {
-  return QUESTIONS[team].map((q) => getScenarioMeta(q.id).scene);
-}
 
 export default function GameShell() {
   const [phase, setPhase] = useState<Phase>("welcome");
@@ -52,12 +46,12 @@ export default function GameShell() {
 
   switch (phase) {
     case "welcome":
-      return <WelcomeScreen key={session} onStart={() => startRound("A")} preloadScenes={scenesFor("A")} />;
+      return <WelcomeScreen key={session} onStart={() => startRound("A")} />;
     case "roundA":
       return <TeamRound key={`A-${session}`} team="A" questions={QUESTIONS.A} onComplete={handleRoundComplete} />;
     case "doneA":
       return (
-        <RoundCompleteScreen team="A" nextTeam="B" onContinue={() => startRound("B")} preloadScenes={scenesFor("B")} />
+        <RoundCompleteScreen team="A" nextTeam="B" onContinue={() => startRound("B")} />
       );
     case "roundB":
       return <TeamRound key={`B-${session}`} team="B" questions={QUESTIONS.B} onComplete={handleRoundComplete} />;

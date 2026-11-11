@@ -137,11 +137,3 @@ export const ListIcon = (p: IconProps) => (
     <path d="M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01" />
   </Svg>
 );
-
-export const PhotoIcon = (p: IconProps) => (
-  <Svg {...p}>
-    <rect x="3.5" y="5" width="17" height="14" rx="2" />
-    <circle cx="9" cy="10" r="1.6" />
-    <path d="M20.5 16l-5-5-8.5 8" />
-  </Svg>
-);

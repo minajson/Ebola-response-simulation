@@ -23,7 +23,7 @@ Set `PORT` to use a different port, or `PW_CHROMIUM_PATH` to use an existing Chr
   - The answer key and scenario titles are pinned.
   - Each scenario has 4 distinct options and complete feedback text.
   - No "Occupational Health" wording remains, and none of the corrected phrases has crept back in.
-  - The 10 scene photos are bundled locally with credits.
+  - No photographs are bundled or referenced; scenes are illustrated with inline icons.
 - **Scoring** (`unit/logic.spec.ts`)
   - +10 correct, −5 incorrect, 0 unanswered.
   - The +5 speed bonus applies only when all 7 are answered in time, and the rule is identical for both teams.
@@ -39,7 +39,7 @@ Set `PORT` to use a different port, or `PW_CHROMIUM_PATH` to use an existing Chr
   - Mute, Reduce Motion, fullscreen, touch taps, and the A–D / 1–4 keys.
   - Each timer sound plays exactly once: 45 s, 20 s, the 10→4 beeps, the 3→1 beeps and the timeout alarm.
   - The high-risk shake happens once, and alarms never overlap.
-  - Only same-origin network requests are made, and a placard replaces any photo that fails to load.
+  - Only same-origin network requests are made, no images are downloaded, and every scenario shows an illustrated scene panel.
 - **Projector layout** (`e2e/layout.spec.ts`), run in real time at 1366×768, 1920×1080 and 1280×720:
   - Every screen is checked: welcome, all 14 scenarios, both hand-overs, all 15 review steps and the winner screen.
   - Nothing scrolls, and all four options are always visible.

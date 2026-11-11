@@ -1,7 +1,7 @@
 import Link from "next/link";
 import TopBar from "@/components/TopBar";
-import SceneImage, { SCENE_HERO_SIZES } from "@/components/SceneImage";
-import { HeroIntro, PhotoCredits, TrainingFootnote } from "@/components/Hero";
+import { IncidentBoard } from "@/components/ScenePanel";
+import { HeroIntro, TrainingFootnote } from "@/components/Hero";
 import { ArrowRightIcon } from "@/components/ui/icons";
 
 /** Cover / holding screen — useful while participants join in the room or online. */
@@ -22,13 +22,10 @@ export default function Home() {
             </Link>
           </div>
         </div>
-        <figure className="hidden h-[min(74vh,720px)] min-h-[380px] lg:block">
-          <SceneImage slug="industrial-site" sizes={SCENE_HERO_SIZES} priority className="h-full w-full" />
-        </figure>
+        <IncidentBoard className="hidden h-[min(74vh,720px)] min-h-[380px] lg:flex" />
       </main>
       <footer className="flex flex-col gap-2 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
         <TrainingFootnote />
-        <PhotoCredits />
       </footer>
     </div>
   );

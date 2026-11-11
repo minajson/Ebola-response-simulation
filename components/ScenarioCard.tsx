@@ -2,7 +2,7 @@
 
 import type { OptionKey, Question } from "@/data/questions";
 import { getScenarioMeta } from "@/data/scenarioMeta";
-import SceneImage from "@/components/SceneImage";
+import ScenePanel from "@/components/ScenePanel";
 import { LockIcon } from "@/components/ui/icons";
 
 /** Options are always shown in their original order — never shuffled. */
@@ -36,14 +36,13 @@ export default function ScenarioCard({
       aria-labelledby={`scenario-${question.id}-text`}
       className="flex h-full min-h-0 flex-col overflow-y-auto rounded-2xl border border-line bg-surface shadow-card"
     >
-      <SceneImage
+      <ScenePanel
         key={`scene-${question.id}`}
         slug={meta.scene}
-        priority
-        className="mx-3 mt-3 min-h-[52px] flex-[1_1_170px] animate-fade-in [@media(max-height:700px)]:hidden"
+        className="mx-3 mt-3 flex-none animate-fade-in [@media(max-height:700px)]:hidden"
       />
 
-      <div key={question.id} className="flex flex-none animate-fade-up flex-col px-5 pb-4 pt-4 lg:px-7 lg:pb-5">
+      <div key={question.id} className="my-auto flex flex-none animate-fade-up flex-col px-5 pb-4 pt-4 lg:px-7 lg:pb-5">
         <div className="flex flex-wrap items-baseline gap-x-3 gap-y-1">
           <span className="text-[14px] font-bold uppercase tracking-[0.16em] text-alert">
             Scenario {questionNumber} of {totalQuestions}

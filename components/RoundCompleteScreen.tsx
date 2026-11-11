@@ -1,9 +1,7 @@
 "use client";
 
 import type { Team } from "@/data/questions";
-import type { SceneSlug } from "@/data/scenes";
 import TopBar from "@/components/TopBar";
-import { ScenePreloader } from "@/components/SceneImage";
 import Button from "@/components/ui/Button";
 import { Kicker, TeamChip } from "@/components/ui/Brand";
 import { ArrowRightIcon, SealIcon } from "@/components/ui/icons";
@@ -14,14 +12,13 @@ interface RoundCompleteScreenProps {
   /** The team that plays next, or null when both rounds are done. */
   nextTeam: Team | null;
   onContinue: () => void;
-  preloadScenes?: SceneSlug[];
 }
 
 /**
  * Facilitator-controlled hand-over. Deliberately shows no score, no correct
  * count and no answers — results stay sealed until both teams have played.
  */
-export default function RoundCompleteScreen({ team, nextTeam, onContinue, preloadScenes = [] }: RoundCompleteScreenProps) {
+export default function RoundCompleteScreen({ team, nextTeam, onContinue }: RoundCompleteScreenProps) {
   return (
     <div className="flex min-h-[100dvh] flex-col bg-canvas">
       <TopBar />
@@ -76,7 +73,6 @@ export default function RoundCompleteScreen({ team, nextTeam, onContinue, preloa
           </div>
         </div>
       </main>
-      {preloadScenes.length > 0 && <ScenePreloader slugs={preloadScenes} />}
     </div>
   );
 }

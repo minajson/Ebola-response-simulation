@@ -116,17 +116,21 @@ test.describe("content integrity", () => {
     expect(opt(7, "C")).toMatch(/medical mask or respirator/);
   });
 
-  test("scene photos are bundled locally with credits", () => {
-    const src = readFileSync(join(ROOT, "data", "scenes.ts"), "utf8");
-    const imports = [...src.matchAll(/from "@\/assets\/scenes\/([\w-]+\.jpg)"/g)].map((m) => m[1]);
-    expect(imports).toHaveLength(10);
-    for (const f of imports) {
-      const p = join(ROOT, "assets", "scenes", f);
-      expect(existsSync(p), f).toBe(true);
-      expect(statSync(p).size, `${f} size`).toBeLessThan(300_000);
-    }
-    expect((src.match(/credit: \{/g) ?? []).length).toBe(10);
-    expect(src).not.toMatch(/https?:\/\/(?!commons\.wikimedia\.org|creativecommons\.org)/);
+  test("no photographs are bundled or referenced", () => {
+    expect(existsSync(join(ROOT, "assets"))).toBe(false);
+    const files: string[] = [];
+    const walk = (dir: string) => {
+      for (const name of readdirSync(dir)) {
+        const p = join(dir, name);
+        if (statSync(p).isDirectory()) walk(p);
+        else files.push(p);
+      }
+    };
+    ["app", "components", "lib", "data", "public"].filter((d) => existsSync(join(ROOT, d))).forEach((d) => walk(join(ROOT, d)));
+    expect(files.filter((f) => /\.(jpe?g|png|webp|avif|gif)$/i.test(f))).toEqual([]);
+    const code = files.filter((f) => /\.(ts|tsx)$/.test(f)).map((f) => readFileSync(f, "utf8")).join("\n");
+    expect(code).not.toContain("next/image");
+    expect(code).not.toMatch(/\.(jpe?g|png|webp)"/);
   });
 });
 

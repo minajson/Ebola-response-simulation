@@ -306,15 +306,20 @@ test("touch taps, number keys, one-off high-risk shake, alarms never overlap", a
   for (let i = 1; i < list.length; i++) expect(list[i].t - list[i - 1].t).toBeGreaterThanOrEqual(600);
 });
 
-test("works offline-first: same-origin requests only, placard if photos fail", async ({ page }) => {
+test("no photographs: same-origin requests only, illustrated scene panel on every scenario", async ({ page }) => {
   const hosts = new Set<string>();
-  page.on("request", (r) => hosts.add(new URL(r.url()).host));
-  await page.route(/\/_next\/image|\.jpg(\?|$)/, (r) => (r.request().url().includes("ambulance") ? r.abort() : r.continue()));
+  const images: string[] = [];
+  page.on("request", (r) => {
+    hosts.add(new URL(r.url()).host);
+    if (r.resourceType() === "image" && !/icon\.svg/.test(r.url())) images.push(r.url());
+  });
   await openGame(page);
   await startRound(page, "A");
-  for (const q of TEAM.A.slice(0, 6)) await answer(page, q.correctAnswer);
-  // Q7 uses the (blocked) ambulance photo → local illustrated placard instead.
-  await expect(page.locator('[role="img"][aria-label$="(illustration)"]')).toHaveCount(1);
-  await answer(page, TEAM.A[6].correctAnswer);
+  for (const q of TEAM.A) {
+    await expect(page.locator('main [role="note"][aria-label^="Scene:"]')).toHaveCount(1);
+    await expect(page.locator("main img")).toHaveCount(0);
+    await answer(page, q.correctAnswer, q);
+  }
+  expect(images).toEqual([]);
   expect([...hosts]).toEqual([new URL(page.url()).host]);
 });

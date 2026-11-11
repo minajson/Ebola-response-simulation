@@ -1,9 +1,8 @@
 "use client";
 
-import type { SceneSlug } from "@/data/scenes";
 import TopBar from "@/components/TopBar";
-import SceneImage, { SCENE_HERO_SIZES, ScenePreloader } from "@/components/SceneImage";
-import { HeroIntro, PhotoCredits, TrainingFootnote } from "@/components/Hero";
+import { IncidentBoard } from "@/components/ScenePanel";
+import { HeroIntro, TrainingFootnote } from "@/components/Hero";
 import Button from "@/components/ui/Button";
 import { ArrowRightIcon } from "@/components/ui/icons";
 import { formatClock, ROUND_SECONDS, TEAM_INFO } from "@/lib/config";
@@ -11,10 +10,9 @@ import { COMPLETION_BONUS, CORRECT_POINTS, UNANSWERED_POINTS, WRONG_PENALTY, for
 
 interface WelcomeScreenProps {
   onStart: () => void;
-  preloadScenes: SceneSlug[];
 }
 
-export default function WelcomeScreen({ onStart, preloadScenes }: WelcomeScreenProps) {
+export default function WelcomeScreen({ onStart }: WelcomeScreenProps) {
   const clock = formatClock(ROUND_SECONDS);
   const steps = [
     { title: `${TEAM_INFO.A.name} round`, detail: `${TEAM_INFO.A.round} · 7 scenarios · ${clock}` },
@@ -72,17 +70,12 @@ export default function WelcomeScreen({ onStart, preloadScenes }: WelcomeScreenP
           </div>
         </div>
 
-        <figure className="hidden h-[min(72vh,680px)] min-h-[360px] lg:block">
-          <SceneImage slug="ppe-team" sizes={SCENE_HERO_SIZES} priority className="h-full w-full" />
-        </figure>
+        <IncidentBoard className="hidden h-[min(72vh,680px)] min-h-[360px] lg:flex" />
       </main>
 
       <footer className="flex flex-col gap-2 border-t border-line px-5 py-3 sm:flex-row sm:items-center sm:justify-between sm:px-8 lg:px-12">
         <TrainingFootnote />
-        <PhotoCredits />
       </footer>
-
-      <ScenePreloader slugs={preloadScenes} />
     </div>
   );
 }
